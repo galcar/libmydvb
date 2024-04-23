@@ -1,0 +1,12 @@
+
+Simply execute:
+
+$ ./configure
+$ make
+
+then
+
+$ make install
+
+This will copy all dynamic and static libraries in /usr/local/lib by default, and
+header files in /usr/local/include

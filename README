@@ -1,0 +1,4 @@
+libmydvb is a library for tuning DVB devices and decoding DVB data 
+that can be exposed to programs in form of events and handlers
+
+ 

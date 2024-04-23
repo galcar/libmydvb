@@ -1,0 +1,42 @@
+
+You need the following:
+
+- linux experience
+
+- C knowledge
+
+- patience
+
+- understatement how DVB works (to get the correct CWs from the ECMs)
+
+- a DVB card supported by the drivers from http://linuxtv.org
+  that gives you the unmodified TS (e.g. WinTV Nova)
+  start the tsfeed on the machine containing the card
+  you need the linuxtv-includes (URL see above) for compiling
+  tsfeed doesn't tune - you have to do that yourself
+
+- a fast linux-PC (>800MHz) to run the descrambler on
+  start the descrambler here (may be same machine as above if fast enough)
+
+- a source for decrypted ControlWords
+  send them via TCP connection as 16byte packets to port 2049
+  of the descrambler
+
+compile:
+gcc -Wall -O3 -I ~/DVB/ost/include -o tsfeed tsfeed.c
+gcc -Wall -O3 descramble descramble.c csa.c
+
+usage:
+the descrambler will write the (decrypted if possible, but not verified)
+output to stdout. you may use ts2ps from the linuxtv mpegtools 
+to convert it into a format mplayer understands
+
+limitations:
+only descrambles pids crypted with the same ControlWord
+
+based upon information from http://csa.irde.to and 
+http://www.4freeboard.to/board/thread.php?threadid=20660
+
+
+Have fun!
+
