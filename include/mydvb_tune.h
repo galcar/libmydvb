@@ -112,7 +112,6 @@ typedef struct {
 typedef struct {
     int 				adapter;		/* adapter number */
 	int 				device;			/* device frontend for this tuner */
-	int					demuxer;		/* device demuxer for this tuner */
 	
 	char       			name[128];		/* adapter name */
 	mydvb_tune_type_t 	type;			/* type */
@@ -124,7 +123,6 @@ typedef struct {
 	struct dvb_frontend_parameters p;	// current synth information
 
 	int fd;								// file descriptor for tunning device
-	int fd_dvr;							// file descriptor of the dvr device
 
 	MYDVB_TUNE_INFO info;				// info about tunning
 

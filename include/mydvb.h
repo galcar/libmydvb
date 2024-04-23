@@ -3,8 +3,6 @@
 
 #include <poll.h>
 
-typedef struct _mydvb_engine MYDVB_ENGINE;
-
 typedef struct _mydvb MYDVB;
 typedef struct _mydvb_list MYDVB_LIST;
 
@@ -559,41 +557,7 @@ struct _mydvb_list {
 	int len;	
 };
 
-/* pending: */
-struct _mydvb_engine {
-	struct pollfd 					pfd[64];	/* the poll file descriptor table */
-	int 							poll_len;	/* len of pfd */
 
-	/* event management */
-	DYN_ARRAY  						*listeners;
-	int								event_propagation;
-
-	int 							mainloop;	/* main loop in progress */
-
-	DYN_ARRAY						*tunes;
-};
-
-struct _mydvb2 {
-	/* decoding attributes */
-
-	int 							fd_dvr;		/* descriptor del vdr */
-
-	int								sct_fd_len; /* demux sct descriptors len */
-	struct FILE_PID					sct_fd[32]; /* demux sct descriptors table */
-
-	int								pes_fd_len;	/* demux pes descriptors len */
-	struct FILE_PID					pes_fd[32];	/* demux pes descriptors table */
-
-	MYDVB_PAT 						*pat;		/* the pat table */
-	MYDVB_CAT 						*cat;		/* the cat table */
-	MYDVB_SDT 						*sdt;		/* the sdt table */
-	MYDVB_TDT 						tdt;		/* tdt table */
-
-	DYN_ARRAY						*aits;		/* aits tables */
-
-	int 							ready;		/* all basic elements (pat, sdt and programs) are ready */
-
-};
 
 /* -------- tune scan ---------------- */
 typedef struct {

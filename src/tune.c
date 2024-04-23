@@ -507,21 +507,6 @@ int mydvb_tune_init (MYDVB_TUNE *mytune, int adapter, int device) {
 
 		//mydvb_log (MYDVB_LOG_LEVEL_DEBUG, "Found tuner %d-%d type %d, name %s", adapter, device, mytune->type, info.name);
 
-		// select demuxer for this tunner
-		mytune->demuxer = device;
-
-		for (int i = device; i >= 0; i--) {
-			sprintf (s, "/dev/dvb/adapter%d/demux%d", adapter, i);
-
-			int demux_fd = open (s, O_RDWR);
-
-			if (demux_fd!=-1) { // found
-				mytune->demuxer = i;
-				close (demux_fd);
-				break;
-			}
-		}
-
 		return 0;
 	}
 	return -1;
