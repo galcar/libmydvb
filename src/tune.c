@@ -572,7 +572,6 @@ int mydvb_tune_init (MYDVB_TUNE *mytune, int adapter, int device) {
 		*/
 
 		mytune->caps = info.caps;
-
 		mytune->freq_min = info.frequency_min;
 		mytune->freq_max = info.frequency_max;
 		mytune->freq_step_min = info.frequency_stepsize;

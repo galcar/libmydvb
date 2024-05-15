@@ -3,8 +3,6 @@
 
 #include <poll.h>
 
-typedef struct _mydvb_engine MYDVB_ENGINE;
-
 typedef struct _mydvb MYDVB;
 
 
@@ -166,8 +164,8 @@ struct _mydvb_engine {
 };
 
 
+/* -------- tune scan ---------------- */
 
-/* -------- tuner scan ---------------- */
 typedef struct {
 	MYDVB_TUNE					*tune;
 	MYDVB_TUNER_SCAN_CTRL 		*scan;

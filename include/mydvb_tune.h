@@ -176,7 +176,6 @@ struct _mydvb_tuner {
 
     int 				adapter;		/* adapter number */
 	int 				device;			/* device frontend for this tuner */
-	int					demuxer;		/* device demuxer for this tuner */
 	
 	char       			name[128];		/* adapter name */
 	mydvb_tuner_type_t 	type;			/* type */
