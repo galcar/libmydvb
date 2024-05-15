@@ -1,3 +1,19 @@
+/*
+ * This file is part of the libmydvb distribution (https://github.com/galcar/libmydvb).
+ * Copyright (c) 2024 G. Alcaraz.
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, version 3.
+ *
+ * This program is distributed in the hope that it will be useful, but
+ * WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+ * General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program. If not, see <http://www.gnu.org/licenses/>.
+ */
 #include <stdlib.h>
 
 #include <string.h>
@@ -15,29 +31,32 @@
 
 /* ----------------------------------- */
 
-void __mydvb_search_finish (MYDVB *mydvb, TUNE_SCAN_INFO *scan_info, mydvb_search_status_t status) {
+void __mydvb_search_finish (MYDVB_ENGINE *engine, TUNER_SCAN_INFO *scan_info, mydvb_search_status_t status) {
 
 	int i;
 	int n;
 	MYDVB_LISTENER *listener = NULL;
 	MYDVB_LISTENER *aux;
 
+	MYDVB_TUNE *tune = scan_info->tune;
+
 	MYDVB_EVENT event;
 
+
 	/* remove all search listeners */
-	n = dyn_array_get_size (mydvb->listeners);
+	n = dyn_array_get_size (engine->listeners);
 	i = 0;
 	while (i < n) {
 
-		listener = (MYDVB_LISTENER *) dyn_array_get_data (mydvb->listeners, i);
+		listener = (MYDVB_LISTENER *) dyn_array_get_data (engine->listeners, i);
 
-		if (listener->type == MYDVB_EVENT_EXT_FD) {
+		if (listener->type == MYDVB_EVENT_EXT_FD || listener->type == MYDVB_SEARCH_EVENT) {
 
 			i++;
 
 		} else {
 
-			dyn_array_remove (mydvb->listeners, i);
+			dyn_array_remove (engine->listeners, i);
 
 			n --;
 		}
@@ -48,7 +67,7 @@ void __mydvb_search_finish (MYDVB *mydvb, TUNE_SCAN_INFO *scan_info, mydvb_searc
 	for (i = 0; i < n ; i++) {
 		listener = (MYDVB_LISTENER *) dyn_array_get_data (scan_info->listeners, i);
 
-		aux = dyn_array_add_empty (mydvb->listeners);
+		aux = dyn_array_add_empty (engine->listeners);
 
 		aux->id = listener->id;
 		aux->type = listener->type;
@@ -64,10 +83,14 @@ void __mydvb_search_finish (MYDVB *mydvb, TUNE_SCAN_INFO *scan_info, mydvb_searc
 	event.search.status = status;
 	event.search.info_dvb = scan_info->dvb_info;
 
-	mydvb_notify_event (mydvb, &event);
+	mydvb_notify_event (engine, &event);
 
 	/* stop event propagation */
-	mydvb->event_propagation = 0;
+	mydvb_event_stop_propagation (engine);
+
+	mydvb_tuner_release (engine, tune);
+
+	scan_info->tune = NULL;
 
 	/* free all, except de dvb_info */
 
@@ -85,13 +108,17 @@ void __mydvb_search_finish (MYDVB *mydvb, TUNE_SCAN_INFO *scan_info, mydvb_searc
 
 /* scan callback manager */
 
-void __mydvb_search_ready_callback (MYDVB *mydvb, MYDVB_EVENT *event, void *data) {
+void __mydvb_search_ready_callback (MYDVB_ENGINE *engine, MYDVB_EVENT *event, void *data) {
 
-	TUNE_SCAN_INFO *scan_info = (TUNE_SCAN_INFO *) data;
+	TUNER_SCAN_INFO *scan_info = (TUNER_SCAN_INFO *) data;
 
 	INFO_DVB *dvb_info = scan_info->dvb_info;
 
-	MYDVB_TUNE_SCAN_CTRL *scan = scan_info->scan;
+	MYDVB_TUNER_SCAN_CTRL *scan = scan_info->scan;
+
+	MYDVB_TUNE *tune = scan_info->tune;
+
+	MYDVB *mydvb = tune->mydvb;
 
 	INFO_CHANNEL *ichannel = NULL;
 	INFO_PROGRAM *iprogram = NULL;
@@ -110,17 +137,18 @@ void __mydvb_search_ready_callback (MYDVB *mydvb, MYDVB_EVENT *event, void *data
 
 	// ok nuevo canal
 	ichannel = info_channel_new();
-	ichannel->n = mydvb_tune_get_channel (mydvb->mytune.p.frequency);
+	ichannel->type = tune->type;
+	ichannel->n = tune->channel;
 
-	ichannel->p.frequency = mydvb->mytune.p.frequency;
-	ichannel->p.inversion = mydvb->mytune.p.inversion;
-	ichannel->p.u.ofdm.bandwidth = mydvb->mytune.p.u.ofdm.bandwidth;
-	ichannel->p.u.ofdm.code_rate_HP = mydvb->mytune.p.u.ofdm.code_rate_HP;
-	ichannel->p.u.ofdm.code_rate_LP = mydvb->mytune.p.u.ofdm.code_rate_LP;
-	ichannel->p.u.ofdm.constellation = mydvb->mytune.p.u.ofdm.constellation;
-	ichannel->p.u.ofdm.transmission_mode = mydvb->mytune.p.u.ofdm.transmission_mode;
-	ichannel->p.u.ofdm.guard_interval = mydvb->mytune.p.u.ofdm.guard_interval;
-	ichannel->p.u.ofdm.hierarchy_information = mydvb->mytune.p.u.ofdm.hierarchy_information;
+	ichannel->p.frequency = tune->p.frequency;
+	ichannel->p.inversion = tune->p.inversion;
+	ichannel->p.u.ofdm.bandwidth = tune->p.u.ofdm.bandwidth;
+	ichannel->p.u.ofdm.code_rate_HP = tune->p.u.ofdm.code_rate_HP;
+	ichannel->p.u.ofdm.code_rate_LP = tune->p.u.ofdm.code_rate_LP;
+	ichannel->p.u.ofdm.constellation = tune->p.u.ofdm.constellation;
+	ichannel->p.u.ofdm.transmission_mode = tune->p.u.ofdm.transmission_mode;
+	ichannel->p.u.ofdm.guard_interval = tune->p.u.ofdm.guard_interval;
+	ichannel->p.u.ofdm.hierarchy_information = tune->p.u.ofdm.hierarchy_information;
 
 	len = dyn_array_get_size (mydvb->pat->programs);
 
@@ -217,122 +245,132 @@ void __mydvb_search_ready_callback (MYDVB *mydvb, MYDVB_EVENT *event, void *data
 	info_dvb_add (dvb_info, ichannel);
 
 	/* free decoder resources */
-	mydvb_end_decoder (mydvb);
+	mydvb_stop_decoder (engine, tune);
 
 	mydvb_log (MYDVB_LOG_LEVEL_DEBUG, "Tune scan: end decoder");
 
 
 	/* check search cancellation */
 	if (scan_info->status == MYDVB_SEARCH_CANCELLED) {
-		__mydvb_search_finish (mydvb, scan_info, MYDVB_SEARCH_CANCELLED);
+		__mydvb_search_finish (engine, scan_info, MYDVB_SEARCH_CANCELLED);
 		return;
 	}
 
 	/* check search stopped */
 	if (scan_info->status == MYDVB_SEARCH_STOPPED) {
-		__mydvb_search_finish (mydvb, scan_info, MYDVB_SEARCH_STOPPED);
+		__mydvb_search_finish (engine, scan_info, MYDVB_SEARCH_STOPPED);
 		return;
 	}
 
     /* and startup next tuning */
 
-	if (mydvb_tune_scan_next (&mydvb->mytune, scan)) {
+	if (mydvb_tune_scan_next (tune, scan)) {
 
-		mydvb_tune_scan (&mydvb->mytune, scan);
+		mydvb_log (MYDVB_LOG_LEVEL_DEBUG, "Tune scan: next scan %d", scan->scan.t.f);
+
+		mydvb_tune_scan (tune, scan);
 
 	} else {
 
-		mydvb_log (MYDVB_LOG_LEVEL_DEBUG, "Tune scan completed");
+		mydvb_log (MYDVB_LOG_LEVEL_DEBUG, "Tune scan: completed");
 
 		/* no more scanning: finish */
-		__mydvb_search_finish (mydvb, scan_info, MYDVB_SEARCH_COMPLETED);
+		__mydvb_search_finish (engine, scan_info, MYDVB_SEARCH_COMPLETED);
 
 	}
 
 
 }
 
-void __mydvb_search_tune_callback (MYDVB *mydvb, MYDVB_EVENT *event, void *data) {
+void __mydvb_search_tune_callback (MYDVB_ENGINE *engine, MYDVB_EVENT *event, void *data) {
 
-	TUNE_SCAN_INFO *scan_info = (TUNE_SCAN_INFO *) data;
+	TUNER_SCAN_INFO *scan_info = (TUNER_SCAN_INFO *) data;
 
-	MYDVB_EVENT_TUNE *tune_event = &event->tune;
+	MYDVB_TUNE *tune = scan_info->tune;
+
+	MYDVB_EVENT_TUNER *tune_event = &event->tuner;
 
 	/* check search cancellation */
 	if (scan_info->status == MYDVB_SEARCH_CANCELLED) {
-		__mydvb_search_finish (mydvb, scan_info, MYDVB_SEARCH_CANCELLED);
+		__mydvb_search_finish (engine, scan_info, MYDVB_SEARCH_CANCELLED);
 		return;
 	}
 
 	/* check search stopped */
 	if (scan_info->status == MYDVB_SEARCH_STOPPED) {
-		__mydvb_search_finish (mydvb, scan_info, MYDVB_SEARCH_STOPPED);
+		__mydvb_search_finish (engine, scan_info, MYDVB_SEARCH_STOPPED);
 		return;
 	}
 
-	if (tune_event->status == TUNE_STATUS_LOCK) {
+	if (tune_event->status == TUNER_STATUS_LOCK) {
 
 		/* and start decoding */
 
-		mydvb_log (MYDVB_LOG_LEVEL_DEBUG, "Tune scan: Starting decoding");
+		mydvb_log (MYDVB_LOG_LEVEL_DEBUG, "Tune scan locked at %d: Starting decoding channel %d", tune->p.frequency, tune->channel);
 
-		mydvb_start_decoder (mydvb);
+		mydvb_start_decoder (engine, tune);
 
 
-    } else if (tune_event->status == TUNE_STATUS_TRYING) {
+    } else if (tune_event->status == TUNER_STATUS_TRYING) {
 
-    	mydvb_log (MYDVB_LOG_LEVEL_DEBUG, "Tune scan: trying");
+    	mydvb_log (MYDVB_LOG_LEVEL_DEBUG, "Tune scan trying at %d", tune->p.frequency);
 
-	} else if (tune_event->status == TUNE_STATUS_FAILED) {
+	} else if (tune_event->status == TUNER_STATUS_FAILED) {
 
-		mydvb_log (MYDVB_LOG_LEVEL_DEBUG, "Tune scan: failed");
+		mydvb_log (MYDVB_LOG_LEVEL_DEBUG, "Tune scan failed");
 
-		if (mydvb_tune_scan_next (&mydvb->mytune, scan_info->scan)) {
+		if (mydvb_tune_scan_next (tune, scan_info->scan)) {
 
-			mydvb_tune_scan (&mydvb->mytune, scan_info->scan);
+			mydvb_tune_scan (tune, scan_info->scan);
 
 		} else {
 			/* no more scanning: finish */
-			__mydvb_search_finish (mydvb, scan_info, MYDVB_SEARCH_COMPLETED);
+			__mydvb_search_finish (engine, scan_info, MYDVB_SEARCH_COMPLETED);
 		}
 	}
 }
 
-void __mydvb_search_timeout_callback (MYDVB *mydvb, MYDVB_EVENT *event, void *data) {
+void __mydvb_search_timeout_callback (MYDVB_ENGINE *engine, MYDVB_EVENT *event, void *data) {
 
-	TUNE_SCAN_INFO *scan_info = (TUNE_SCAN_INFO *) data;
+	TUNER_SCAN_INFO *scan_info = (TUNER_SCAN_INFO *) data;
 
-	MYDVB_TUNE_SCAN_CTRL *scan = scan_info->scan;
+	MYDVB_TUNE *tune = scan_info->tune;
 
-	if (event->timeout.count >= 3) { // sometimes there is a tune lock without dvb data
+	MYDVB_TUNER_SCAN_CTRL *scan = scan_info->scan;
 
-		mydvb_log (MYDVB_LOG_LEVEL_DEBUG, "Tune scan: end decoder, more than 3 seconds waiting data");
+	if (tune->status == TUNER_STATUS_LOCK && event->timeout.count - tune->start_ms >= 5000) { // sometimes there is a tune lock without dvb data
+
+		mydvb_log (MYDVB_LOG_LEVEL_DEBUG, "Tune scan: end decoder, more than 5 seconds waiting data");
 
 		/* free decoder resources */
-		mydvb_end_decoder (mydvb);
+		mydvb_stop_decoder (engine, tune);
 
 		/* check search cancellation */
 		if (scan_info->status == MYDVB_SEARCH_CANCELLED) {
-			__mydvb_search_finish (mydvb, scan_info, MYDVB_SEARCH_CANCELLED);
+			__mydvb_search_finish (engine, scan_info, MYDVB_SEARCH_CANCELLED);
 			return;
 		}
 
 		/* check search stopped */
 		if (scan_info->status == MYDVB_SEARCH_STOPPED) {
-			__mydvb_search_finish (mydvb, scan_info, MYDVB_SEARCH_STOPPED);
+			__mydvb_search_finish (engine, scan_info, MYDVB_SEARCH_STOPPED);
 			return;
 		}
 
 		/* and startup next tuning */
 
-		if (mydvb_tune_scan_next (&mydvb->mytune, scan)) {
+		if (mydvb_tune_scan_next (tune, scan)) {
 
-			mydvb_tune_scan (&mydvb->mytune, scan);
+			mydvb_log (MYDVB_LOG_LEVEL_DEBUG, "Tune scan: next scan %d", scan->scan.t.f);
+
+			mydvb_tune_scan (tune, scan);
 
 		} else {
 
+			mydvb_log (MYDVB_LOG_LEVEL_DEBUG, "Tune scan: completed");
+
 			/* no more scanning: finish */
-			__mydvb_search_finish (mydvb, scan_info, MYDVB_SEARCH_COMPLETED);
+			__mydvb_search_finish (engine, scan_info, MYDVB_SEARCH_COMPLETED);
 		}
 
 	}
@@ -342,7 +380,7 @@ void __mydvb_search_timeout_callback (MYDVB *mydvb, MYDVB_EVENT *event, void *da
 /**
  *
  */
-TUNE_SCAN_INFO *mydvb_tune_search (MYDVB *mydvb, MYDVB_TUNE_SCAN_PARAMETER *tune_param) {
+TUNER_SCAN_INFO *mydvb_tuner_search (MYDVB_ENGINE *engine, MYDVB_TUNER_SCAN_PARAMETER *tuner_param) {
 
 	int i;
 	int n;
@@ -350,25 +388,38 @@ TUNE_SCAN_INFO *mydvb_tune_search (MYDVB *mydvb, MYDVB_TUNE_SCAN_PARAMETER *tune
 	MYDVB_LISTENER *listener = NULL;
 	MYDVB_LISTENER *aux = NULL;
 
-	TUNE_SCAN_INFO *scan_info;
+	TUNER_SCAN_INFO *scan_info;
 
-	scan_info = (TUNE_SCAN_INFO *) malloc (sizeof (TUNE_SCAN_INFO));
+	MYDVB_TUNE *tune;
 
-	scan_info->status = MYDVB_SEARCH_SEARCHING;
-	scan_info->scan = (MYDVB_TUNE_SCAN_CTRL *) malloc (sizeof(MYDVB_TUNE_SCAN_CTRL));
+	MYDVB_EVENT event;
+
+	/* check if there is an available tuner */
+	tune = mydvb_get_available_tuner (engine, tuner_param->type);
+	if (tune == NULL) {
+		return NULL;
+	} else {
+		tune->references ++;
+	}
+
+	scan_info = (TUNER_SCAN_INFO *) malloc (sizeof (TUNER_SCAN_INFO));
+
+	scan_info->status 	= MYDVB_SEARCH_SEARCHING;
+	scan_info->scan 	= (MYDVB_TUNER_SCAN_CTRL *) malloc (sizeof(MYDVB_TUNER_SCAN_CTRL));
 	scan_info->dvb_info = info_dvb_new ();
+	scan_info->tune 	= tune;
 
 
 	/* save current listeners */
 	scan_info->listeners = dyn_array_new (sizeof (MYDVB_LISTENER));
 
-	n = dyn_array_get_size (mydvb->listeners);
+	n = dyn_array_get_size (engine->listeners);
 	i = 0;
 	while (i < n) {
 
-		listener = (MYDVB_LISTENER *) dyn_array_get_data (mydvb->listeners, i);
+		listener = (MYDVB_LISTENER *) dyn_array_get_data (engine->listeners, i);
 
-		if (listener->type == MYDVB_EVENT_EXT_FD) {
+		if (listener->type == MYDVB_EVENT_EXT_FD || listener->type == MYDVB_SEARCH_EVENT) {
 
 			i++;
 
@@ -380,34 +431,46 @@ TUNE_SCAN_INFO *mydvb_tune_search (MYDVB *mydvb, MYDVB_TUNE_SCAN_PARAMETER *tune
 			aux->callback = listener->callback;
 			aux->data = listener->data;
 
-			dyn_array_remove (mydvb->listeners, i);
+			dyn_array_remove (engine->listeners, i);
 
 			n --;
 		}
 	}
 
 	/* register a specific tune listener */
-	mydvb_register_listener (mydvb,
-					MYDVB_TUNE_EVENT,
+	mydvb_register_internal_listener (engine,
+			MYDVB_TUNER_EVENT,
 					__mydvb_search_tune_callback, scan_info);
 
 	/* register a specific ready listener */
-	mydvb_register_listener (mydvb,
+	mydvb_register_internal_listener (engine,
 					MYDVB_EVENT_READY,
 					__mydvb_search_ready_callback, scan_info);
 
 	/* register a specific timeout listener */
-	mydvb_register_listener (mydvb,
+	mydvb_register_internal_listener (engine,
 			MYDVB_TIMEOUT_EVENT,
 			__mydvb_search_timeout_callback, scan_info);
 
-	mydvb->event_propagation = 0;
+	mydvb_event_stop_propagation (engine);
 
 	/* now init the tune parameters */
-	mydvb_tune_scan_init (&mydvb->mytune, scan_info->scan, tune_param);
+	mydvb_tune_scan_init (tune, scan_info->scan, tuner_param);
+
+	mydvb_tune_open (tune);
+
+	/* notify listeners about trying tuning */
+	event.type = MYDVB_TUNER_EVENT;
+	event.tuner.status = TUNER_STATUS_TRYING;
+
+	mydvb_notify_event (engine, &event);
+
+
+	/* add the tune filedescriptor to the poll system */
+	mydvb_add_poll (engine, tune->fd);
 
 	/* and start scan */
-	mydvb_tune_scan (&mydvb->mytune, scan_info->scan);
+	mydvb_tune_scan (tune, scan_info->scan);
 
 	return scan_info;
 

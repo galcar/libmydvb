@@ -1,4 +1,19 @@
-
+/*
+ * This file is part of the libmydvb distribution (https://github.com/galcar/libmydvb).
+ * Copyright (c) 2024 G. Alcaraz.
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, version 3.
+ *
+ * This program is distributed in the hope that it will be useful, but
+ * WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+ * General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program. If not, see <http://www.gnu.org/licenses/>.
+ */
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -93,6 +108,7 @@ INFO_CHANNEL *info_channel_new () {
 	INFO_CHANNEL *canal = NULL;
 
 	canal = (INFO_CHANNEL *) malloc (sizeof(INFO_CHANNEL));
+	canal->type = DVB_TYPE_NONE;
 	canal->n = 0;
 	canal->programs_len = 0;
 	canal->programs = NULL;
@@ -223,7 +239,40 @@ void info_dvb_remove (INFO_DVB *dvb, INFO_CHANNEL *channel) {
 	}
 }
 
-INFO_PROGRAM *info_dvb_find (INFO_DVB *dvb, int channel, int service) {
+void info_dvb_move_channel (INFO_DVB *dvb, int chn_from, int chn_to) {
+
+	for (int i=0; i < dvb->channels_len; i++) {
+
+		INFO_CHANNEL *ichannel = dvb->channels[i];
+
+		for (int j = 0; j < ichannel->programs_len; j++) {
+
+			INFO_PROGRAM *p = ichannel->programs[j];
+
+			if (p->user_number == chn_from) { // found
+
+				// reasign numbers
+				for (int n = 0; n < dvb->channels_len; n++) {
+					INFO_CHANNEL *ichn = dvb->channels[n];
+					for (int m = 0; m < ichn->programs_len; m ++) {
+
+						if (ichn->programs[m]->user_number >= chn_to && ichn->programs[m]->user_number < chn_from) {
+							ichn->programs[m]->user_number ++;
+						}
+
+					}
+				}
+
+				p->user_number = chn_to;
+
+				return;
+
+			}
+		}
+	}
+}
+
+INFO_PROGRAM *info_dvb_find (INFO_DVB *dvb, mydvb_tuner_type_t type, int channel, int service) {
 	int i,j;
 
 	INFO_CHANNEL *ichannel;
@@ -240,7 +289,7 @@ INFO_PROGRAM *info_dvb_find (INFO_DVB *dvb, int channel, int service) {
 			continue;
 		}
 
-		if (ichannel->n == channel) {
+		if (ichannel->type == type && ichannel->n == channel) {
 
 			for (j=0; j < ichannel->programs_len; j++) {
 				iprogram = ichannel->programs[j];
@@ -253,6 +302,29 @@ INFO_PROGRAM *info_dvb_find (INFO_DVB *dvb, int channel, int service) {
 			}
 
 			break;
+		}
+	}
+
+	return NULL;
+}
+
+INFO_PROGRAM *info_dvb_get_by_user_number (INFO_DVB *dvb, int user_number) {
+
+	if (dvb == NULL) {
+		return NULL;
+	}
+
+	for (int i=0; i < dvb->channels_len; i++) {
+
+		INFO_CHANNEL *ichannel = dvb->channels[i];
+
+		for (int j=0; j < ichannel->programs_len; j++) {
+
+			INFO_PROGRAM *iprogram = ichannel->programs[j];
+
+			if (iprogram->user_number == user_number) {
+				return iprogram;
+			}
 		}
 	}
 
@@ -284,7 +356,7 @@ void info_dvb_merge (INFO_DVB *dvb1, INFO_DVB *dvb2) {
 
 			ichannel1 = dvb1->channels[j];
 
-			if (ichannel1->n == ichannel2->n) {
+			if (ichannel1->type == ichannel2->type && ichannel1->n == ichannel2->n) {
 
 				// encontrado, remove it
 				info_dvb_remove (dvb1, ichannel1);
@@ -307,7 +379,7 @@ void info_dvb_merge (INFO_DVB *dvb1, INFO_DVB *dvb2) {
 
 }
 
-static void _info_dvb_parse_p (int *value, const mydvb_tune_param *lista, char *token) {
+static void _info_dvb_parse_p (int *value, const mydvb_tuner_param *lista, char *token) {
 	int i=0;
 
 	while (lista[i].name!=NULL) {
@@ -345,43 +417,46 @@ int info_dvb_load (const char *name, INFO_DVB *dvb) {
 			s = tokenizer (linea, ":");
 			while (s!=NULL) {
 				switch (st) {
-					case 0: // channel number
+					case 0: // dvb type
+						canal->type = mydvb_tuner_parse_type (s);
+						break;
+					case 1: // channel number
 						v = atoi (s);
 						canal->n = v;
 						break;
-					case 1: // channel frequency
+					case 2: // channel frequency
 						v = atoi (s);
 						canal->p.frequency = v;
 						break;
-					case 2: // inversion
+					case 3: // inversion
 						_info_dvb_parse_p (&v, inversion_list, s);
 						canal->p.inversion = v;
 						break;
-					case 3: // bandwith
+					case 4: // bandwith
 						_info_dvb_parse_p (&v, bw_list, s);
 						canal->p.u.ofdm.bandwidth = v;
 						break;
-					case 4: // fec
+					case 5: // fec
 						_info_dvb_parse_p (&v, fec_list, s);
 						canal->p.u.ofdm.code_rate_HP = v;
 						break;
-					case 5: // fec
+					case 6: // fec
 						_info_dvb_parse_p (&v, fec_list, s);
 						canal->p.u.ofdm.code_rate_LP = v;
 						break;
-					case 6: // qam
+					case 7: // qam
 						_info_dvb_parse_p (&v, constellation_list, s);
 						canal->p.u.ofdm.constellation = v;
 						break;
-					case 7: // transmision
+					case 8: // transmision
 						_info_dvb_parse_p (&v, transmissionmode_list, s);
 						canal->p.u.ofdm.transmission_mode = v;
 						break;
-					case 8: // guard
+					case 9: // guard
 						_info_dvb_parse_p (&v, guard_list, s);
 						canal->p.u.ofdm.guard_interval = v;
 						break;
-					case 9: // hierarchy
+					case 10: // hierarchy
 						_info_dvb_parse_p (&v, hierarchy_list, s);
 						canal->p.u.ofdm.hierarchy_information = v;
 						break;
@@ -497,17 +572,18 @@ int info_dvb_save (const char *name, INFO_DVB *dvb) {
 		if (ichannel!=NULL) {
 			p = &ichannel->p;
 		
-			fprintf (f, "%d:%lu:%s:%s:%s:%s:%s:%s:%s:%s\n",
-				(p->frequency / 1000000 - 306)  / 8,
+			fprintf (f, "%s:%d:%lu:%s:%s:%s:%s:%s:%s:%s:%s\n",
+				mydvb_tuner_type_table()[ichannel->type],
+				ichannel->n,
 				(unsigned long) p->frequency,
-				mydvb_tune_param_search (inversion_list, p->inversion),
-			    mydvb_tune_param_search (bw_list, p->u.ofdm.bandwidth),
-				mydvb_tune_param_search (fec_list, p->u.ofdm.code_rate_HP),
-				mydvb_tune_param_search (fec_list, p->u.ofdm.code_rate_LP),
-			    mydvb_tune_param_search (constellation_list, p->u.ofdm.constellation),
-			    mydvb_tune_param_search (transmissionmode_list, p->u.ofdm.transmission_mode),
-			    mydvb_tune_param_search (guard_list, p->u.ofdm.guard_interval),
-			    mydvb_tune_param_search (hierarchy_list, p->u.ofdm.hierarchy_information));
+				mydvb_tuner_param_search (inversion_list, p->inversion),
+			    mydvb_tuner_param_search (bw_list, p->u.ofdm.bandwidth),
+				mydvb_tuner_param_search (fec_list, p->u.ofdm.code_rate_HP),
+				mydvb_tuner_param_search (fec_list, p->u.ofdm.code_rate_LP),
+			    mydvb_tuner_param_search (constellation_list, p->u.ofdm.constellation),
+			    mydvb_tuner_param_search (transmissionmode_list, p->u.ofdm.transmission_mode),
+			    mydvb_tuner_param_search (guard_list, p->u.ofdm.guard_interval),
+			    mydvb_tuner_param_search (hierarchy_list, p->u.ofdm.hierarchy_information));
 			
 			for (j=0; j < ichannel->programs_len; j++) {
 				iprogram = ichannel->programs[j];
@@ -609,14 +685,14 @@ int info_dvb_save_channels_conf (const char *name, INFO_DVB *dvb) {
 				  fprintf (f, "%s:%lu:%s:%s:%s:%s:%s:%s:%s:%s:%d:%d:%d\n",
 				    (unsigned char *) (utf8 ==NULL?"":utf8),
 					(unsigned long) p->frequency,
-					mydvb_tune_param_search (inversion_list, p->inversion),
-			      	mydvb_tune_param_search (bw_list, p->u.ofdm.bandwidth),
-					mydvb_tune_param_search (fec_list, p->u.ofdm.code_rate_HP),
-					mydvb_tune_param_search (fec_list, p->u.ofdm.code_rate_LP),
-			      	mydvb_tune_param_search (constellation_list, p->u.ofdm.constellation),
-			       	mydvb_tune_param_search (transmissionmode_list, p->u.ofdm.transmission_mode),
-			       	mydvb_tune_param_search (guard_list, p->u.ofdm.guard_interval),
-			       	mydvb_tune_param_search (hierarchy_list, p->u.ofdm.hierarchy_information),
+					mydvb_tuner_param_search (inversion_list, p->inversion),
+			      	mydvb_tuner_param_search (bw_list, p->u.ofdm.bandwidth),
+					mydvb_tuner_param_search (fec_list, p->u.ofdm.code_rate_HP),
+					mydvb_tuner_param_search (fec_list, p->u.ofdm.code_rate_LP),
+			      	mydvb_tuner_param_search (constellation_list, p->u.ofdm.constellation),
+			       	mydvb_tuner_param_search (transmissionmode_list, p->u.ofdm.transmission_mode),
+			       	mydvb_tuner_param_search (guard_list, p->u.ofdm.guard_interval),
+			       	mydvb_tuner_param_search (hierarchy_list, p->u.ofdm.hierarchy_information),
 					vpid,
 					apid,
 					iprogram->number

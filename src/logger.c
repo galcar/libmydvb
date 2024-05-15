@@ -1,3 +1,19 @@
+/*
+ * This file is part of the libmydvb distribution (https://github.com/galcar/libmydvb).
+ * Copyright (c) 2024 G. Alcaraz.
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, version 3.
+ *
+ * This program is distributed in the hope that it will be useful, but
+ * WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+ * General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program. If not, see <http://www.gnu.org/licenses/>.
+ */
 #include <stdarg.h>
 #include <stdlib.h>
 #include <stdio.h>
@@ -9,8 +25,35 @@
 
 #include "util.h"
 
+#include "mydvb_text.h"
+
 /* global variable for logger */
 MYDVB_LOGGER *mydvb_logger = NULL;
+
+static char *__mydvb_log_levels_table[] = {
+		"debug",
+		"error",
+		"info",
+		NULL
+};
+
+char **mydvb_log_levels_table() {
+	return __mydvb_log_levels_table;
+}
+
+mydvb_log_level_t mydvb_log_parse_level (char *type) {
+
+	mydvb_log_level_t i = 0;
+
+	while (__mydvb_log_levels_table[i] != NULL) {
+		if (strcasecmp (__mydvb_log_levels_table[i], type) == 0) {
+			return i;
+			break;
+		}
+		i++;
+	}
+	return MYDVB_LOG_LEVEL_NONE;
+}
 
 /**
  *
@@ -91,7 +134,11 @@ void mydvb_log_close () {
 	mydvb_logger = NULL;
 }
 
-
+void mydvb_log_set_level (mydvb_log_level_t new_log_level) {
+	if (mydvb_logger) {
+		mydvb_logger->log_level = new_log_level;
+	}
+}
 
 void mydvb_hex_log (int log_level, const unsigned char *buffer, size_t len) {
 	int i,j;
@@ -153,8 +200,7 @@ void mydvb_show_pat (MYDVB_PAT *pat) {
 	MYDVB_PROGRAM *program;
 	int len, i;
 
-	printf ("PAT: Transport Stream ID: %d\n", pat->ts_id);
-	printf ("-Version: %d\n", pat->version);
+	mydvb_log (MYDVB_LOG_LEVEL_INFO, "PAT: Transport Stream ID: %d; Version: %d; Sections: %d-%d", pat->ts_id, pat->version, pat->section_n, pat->section_n_l);
 	
 	/* print nit */
 	if (pat->nit!=NULL) {
@@ -172,20 +218,18 @@ void mydvb_show_nit (MYDVB_NIT *nit) {
 	mydvb_transport_description *td;
 	int len, i;
 
-	printf ("-NIT: Network ID: %d\n", nit->network_id);
-	printf ("--Version: %d\n", nit->version);
+	mydvb_log (MYDVB_LOG_LEVEL_INFO, "-NIT: Network ID: %d; Version: %d; PID: %d; Sections: %d-%d", nit->network_id, nit->version, nit->pid, nit->section_n, nit->section_n_l);
 	
 	mydvb_show_descriptors (nit->descriptors, 2);
 
 	len = dyn_array_get_size (nit->transport_desc);
-	printf ("--Transport Description (total %d)\n", len);
+	mydvb_log (MYDVB_LOG_LEVEL_INFO, "--Transport Description (total %d)", len);
 	for (i=0; i < len; i++) {
 		td = (mydvb_transport_description *) dyn_array_get_data (nit->transport_desc, i);
 		if (td==NULL) {
 			continue;
 		}
-		printf ("---Transport Description Stream ID: %d\n", td->ts_id);
-		printf ("----Original Network ID: %d\n", td->original_net_id);
+		mydvb_log (MYDVB_LOG_LEVEL_INFO, "---Transport Description Stream ID: %d, Original Network ID: %d", td->ts_id, td->original_net_id);
 
 		mydvb_show_descriptors (td->descriptors, 4);
 	}
@@ -196,9 +240,9 @@ void mydvb_show_program (MYDVB_PROGRAM *program) {
 	MYDVB_STREAM *stream;
 	int i, len;
 
-	printf ("-Program number: %d\n", program->number);
-	printf ("--pid: %d\n", program->pmt_pid);
-	printf ("--Version: %d\n", program->version);
+	mydvb_log (MYDVB_LOG_LEVEL_INFO,"-Program number: %d", program->number);
+	mydvb_log (MYDVB_LOG_LEVEL_INFO,"--pid: %d", program->pmt_pid);
+	mydvb_log (MYDVB_LOG_LEVEL_INFO,"--Version: %d", program->version);
 	
 	/*
 
@@ -221,8 +265,8 @@ void mydvb_show_program (MYDVB_PROGRAM *program) {
 void mydvb_show_stream (MYDVB_STREAM *stream) {
 
 
-	printf ("---Stream Type: %2X %s\n", stream->type, mydvb_stream_type_table[stream->type]);
-	printf ("----pid: %d\n", stream->pid);
+	mydvb_log (MYDVB_LOG_LEVEL_INFO,"---Stream Type: %2X %s", stream->type, mydvb_stream_type_table()[stream->type]);
+	mydvb_log (MYDVB_LOG_LEVEL_INFO,"----pid: %d", stream->pid);
 
 	mydvb_show_descriptors (stream->descriptors, 4);
 
@@ -236,21 +280,21 @@ void mydvb_show_sdt (MYDVB_SDT *sdt) {
 		return;
 	}
 
-	printf ("SDT: Transport Stream ID: %d\n", sdt->ts_id);
-	printf ("-Version %d\n", sdt->version);
-	printf ("-Original Network ID: %d\n", sdt->original_net_id);
+	mydvb_log (MYDVB_LOG_LEVEL_INFO, "SDT: Transport Stream ID: %d", sdt->ts_id);
+	mydvb_log (MYDVB_LOG_LEVEL_INFO,"-Version %d", sdt->version);
+	mydvb_log (MYDVB_LOG_LEVEL_INFO,"-Original Network ID: %d", sdt->original_net_id);
 
 	
 	len = dyn_array_get_size (sdt->service_description);
-	printf ("--Services (total %d)\n", len);
+	mydvb_log (MYDVB_LOG_LEVEL_INFO,"--Services (total %d)", len);
 	for (i=0; i < len; i++) {
 		sd = (mydvb_service_description *) dyn_array_get_data (sdt->service_description, i);
 		
-		printf ("--Service Description Number: %d\n", sd->number);		
-		printf ("---Running Status: %d %s\n", sd->running_status, mydvb_running_status_table[sd->running_status]);
-		printf ("---Scrambled: %d\n", sd->scram);
-		printf ("---EIT: %d\n", sd->eit);
-		printf ("---EIT Present/Following: %d\n", sd->eit_pw);
+		mydvb_log (MYDVB_LOG_LEVEL_INFO,"--Service Description Number: %d", sd->number);
+		mydvb_log (MYDVB_LOG_LEVEL_INFO,"---Running Status: %d %s", sd->running_status, mydvb_running_status_table()[sd->running_status]);
+		mydvb_log (MYDVB_LOG_LEVEL_INFO,"---Scrambled: %d", sd->scram);
+		mydvb_log (MYDVB_LOG_LEVEL_INFO,"---EIT: %d", sd->eit);
+		mydvb_log (MYDVB_LOG_LEVEL_INFO,"---EIT Present/Following: %d", sd->eit_pw);
 		
 		mydvb_show_descriptors (sd->descriptors, 3);
 		
@@ -274,11 +318,11 @@ void mydvb_show_ait (MYDVB_AIT *ait) {
 	int i, len;
 	MYDVB_AIT_APP *app;
 
-	printf ("AIT\n");
-	printf ("-pid %d\n", ait->pid);
-	printf ("-Version %d\n", ait->version);
-	printf ("-Test Application Flag: %d\n", ait->test_app_flag);
-	printf ("-Application Type: %d\n", ait->app_type);
+	mydvb_log (MYDVB_LOG_LEVEL_INFO,"AIT");
+	mydvb_log (MYDVB_LOG_LEVEL_INFO,"-pid %d", ait->pid);
+	mydvb_log (MYDVB_LOG_LEVEL_INFO,"-Version %d", ait->version);
+	mydvb_log (MYDVB_LOG_LEVEL_INFO,"-Test Application Flag: %d", ait->test_app_flag);
+	mydvb_log (MYDVB_LOG_LEVEL_INFO,"-Application Type: %d", ait->app_type);
 
 	mydvb_show_descriptors (ait->descriptors, 1);
 
@@ -286,7 +330,7 @@ void mydvb_show_ait (MYDVB_AIT *ait) {
 	for (i=0; i < len; i++) {
 		app = (MYDVB_AIT_APP *) dyn_array_get_data (ait->apps, i);
 
-		printf ("--APPL: Ctrl Code %d\n", app->ctrl_code);
+		mydvb_log (MYDVB_LOG_LEVEL_INFO,"--APPL: Ctrl Code %d", app->ctrl_code);
 		mydvb_show_descriptors (app->descriptors, 2);
 	}	
 
@@ -330,7 +374,7 @@ void mydvb_show_descriptors (DYN_ARRAY *descriptors, int n) {
 	int len, i;
 	mydvb_descriptor *d;
 	
-	printf ("%sDescriptors\n", guiones(n));
+	mydvb_log (MYDVB_LOG_LEVEL_INFO, "%sDescriptors", guiones(n));
 	len = dyn_array_get_size (descriptors);
 	for (i=0; i < len; i++) {
 		d = (mydvb_descriptor *) dyn_array_get_data (descriptors, i);
@@ -341,7 +385,9 @@ void mydvb_show_descriptors (DYN_ARRAY *descriptors, int n) {
 
 void mydvb_show_descriptor (mydvb_descriptor *d, int n) {
 
-	printf ("%sDescriptor type %02x\n", guiones (n), d->info.type);
+	char *s = mydvb_descriptor_type_table ()[d->info.type];
+
+	mydvb_log (MYDVB_LOG_LEVEL_INFO, "%sDescriptor type %02x (%s)", guiones (n), d->info.type, s);
 	switch (d->info.type) {
 		case 0x48:
 			mydvb_show_0x48_descriptor (&d->service, n+1);
@@ -356,43 +402,45 @@ void mydvb_show_descriptor (mydvb_descriptor *d, int n) {
 }
 
 void mydvb_show_0x48_descriptor (mydvb_service_descriptor *d, int n) {
-	printf ("%sservice descriptor\n", guiones(n));
-	printf ("%s-service type: %d %s\n",
+	char *utf;
+
+	mydvb_log (MYDVB_LOG_LEVEL_INFO, "%sservice type: %d %s",
 		guiones(n),
-		d->service_type, mydvb_service_type_table[d->service_type]);
+		d->service_type, mydvb_service_type_table()[d->service_type]);
 	if (d->provider_name!=NULL) {
-		printf ("%s-provider name: %s\n", 
+		utf = mydvb_text_to_utf8 (d->provider_name);
+		mydvb_log (MYDVB_LOG_LEVEL_INFO, "%sprovider name: %s",
 			guiones(n),
-			d->provider_name->text);
+			utf);
+		free (utf);
 	}
 	if (d->service_name!=NULL) {
-		printf ("%s-service name: %s\n", 
+		utf = mydvb_text_to_utf8 (d->service_name);
+		mydvb_log (MYDVB_LOG_LEVEL_INFO, "%sservice name: %s",
 			guiones(n),
-			d->service_name->text);
+			utf);
+		free (utf);
 	}
 }
 
 void mydvb_show_0x52_descriptor (mydvb_stream_id_descriptor *d, int n) {
 
-	printf ("%sstream id descriptor\n", guiones(n));
-	printf ("%s-component tag: %02x\n", guiones(n), d->component_tag);
+	mydvb_log (MYDVB_LOG_LEVEL_INFO,"%scomponent tag: %02x", guiones(n), d->component_tag);
 
 }
 
 void mydvb_show_0x66_descriptor (mydvb_data_broadcast_id_descriptor *d, int n) {
 
-	printf ("%sdata broadcast id descriptor\n", guiones(n));
-	printf ("%s-data broadcast id: %04x\n", guiones(n), d->data_broadcast_id);
+	mydvb_log (MYDVB_LOG_LEVEL_INFO,"%sdata broadcast id: %04x", guiones(n), d->data_broadcast_id);
 	if (d->data_broadcast_id==0x00f0) {
 		mydvb_mhp_data_broadcast_id_descriptor *dbd = (mydvb_mhp_data_broadcast_id_descriptor *) d;
 		int len, i;
 		
 		len = dbd->apps_len;		
-		printf ("%s-info (total %d): ", guiones(n), len);
+		mydvb_log (MYDVB_LOG_LEVEL_INFO,"%sinfo (total %d): ", guiones(n), len);
 		for (i=0; i < len; i++) {
-			printf ("%d ", dbd->apps[i]);
+			mydvb_log (MYDVB_LOG_LEVEL_INFO, "%d ", dbd->apps[i]);
 		}
-		printf ("\n");
 	}
 
 }

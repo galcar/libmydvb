@@ -1,4 +1,19 @@
-
+/*
+ * This file is part of the libmydvb distribution (https://github.com/galcar/libmydvb).
+ * Copyright (c) 2024 G. Alcaraz.
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, version 3.
+ *
+ * This program is distributed in the hope that it will be useful, but
+ * WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+ * General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program. If not, see <http://www.gnu.org/licenses/>.
+ */
 #include <stdlib.h>
 #include <string.h>
 
@@ -11,6 +26,140 @@
 #include "mhp_desc.h"
 
 
+static char *__mydvb_descriptor_type_table[MYDVB_DESCRIPTOR_TYPE_LEN] = {
+		"Reserved",
+		"Reserved",
+		"video_stream_descriptor",
+		"audio_stream_descriptor",
+		"hierarchy_descriptor",
+		"registration_descriptor",
+		"data_stream_alignment_descriptor",
+		"target_background_grid_descriptor",
+		"Video_window_descriptor",
+		"CA_descriptor",
+		"ISO_639_language_descriptor",
+		"System_clock_descriptor",
+		"Multiplex_buffer_utilization_descriptor",
+		"Copyright_descriptor",
+		"Maximum_bitrate_descriptor",
+		"Private_data_indicator_descriptor",
+		"Smoothing_buffer_descriptor", // 16
+		"STD_descriptor",
+		"IBP_descriptor",
+		"Defined in ISO/IEC 13818-6",
+		"Defined in ISO/IEC 13818-6",
+		"Defined in ISO/IEC 13818-6",
+		"Defined in ISO/IEC 13818-6",
+		"Defined in ISO/IEC 13818-6",
+		"Defined in ISO/IEC 13818-6",
+		"Defined in ISO/IEC 13818-6",
+		"Defined in ISO/IEC 13818-6",
+		"MPEG-4_video_descriptor",
+		"MPEG-4_audio_descriptor",
+		"IOD_descriptor",
+		"SL_descriptor",
+		"FMC_descriptor",
+		"External_ES_ID_descriptor", // 32
+		"MuxCode_descriptor",
+		"FmxBufferSize_descriptor",
+		"MultiplexBuffer_descriptor",
+		"ITU-T Rec. H.222.0 | ISO/IEC 13818-1 Reserved ",
+		"ITU-T Rec. H.222.0 | ISO/IEC 13818-1 Reserved ",
+		"ITU-T Rec. H.222.0 | ISO/IEC 13818-1 Reserved ",
+		"ITU-T Rec. H.222.0 | ISO/IEC 13818-1 Reserved ",
+		"ITU-T Rec. H.222.0 | ISO/IEC 13818-1 Reserved ", // 40
+		"ITU-T Rec. H.222.0 | ISO/IEC 13818-1 Reserved ",
+		"ITU-T Rec. H.222.0 | ISO/IEC 13818-1 Reserved ",
+		"ITU-T Rec. H.222.0 | ISO/IEC 13818-1 Reserved ",
+		"ITU-T Rec. H.222.0 | ISO/IEC 13818-1 Reserved ",
+		"ITU-T Rec. H.222.0 | ISO/IEC 13818-1 Reserved ",
+		"ITU-T Rec. H.222.0 | ISO/IEC 13818-1 Reserved ",
+		"ITU-T Rec. H.222.0 | ISO/IEC 13818-1 Reserved ",
+		"ITU-T Rec. H.222.0 | ISO/IEC 13818-1 Reserved ", // 48
+		"ITU-T Rec. H.222.0 | ISO/IEC 13818-1 Reserved ",
+		"ITU-T Rec. H.222.0 | ISO/IEC 13818-1 Reserved ",
+		"ITU-T Rec. H.222.0 | ISO/IEC 13818-1 Reserved ",
+		"ITU-T Rec. H.222.0 | ISO/IEC 13818-1 Reserved ",
+		"ITU-T Rec. H.222.0 | ISO/IEC 13818-1 Reserved ",
+		"ITU-T Rec. H.222.0 | ISO/IEC 13818-1 Reserved ",
+		"ITU-T Rec. H.222.0 | ISO/IEC 13818-1 Reserved ",
+		"ITU-T Rec. H.222.0 | ISO/IEC 13818-1 Reserved ",
+		"ITU-T Rec. H.222.0 | ISO/IEC 13818-1 Reserved ",
+		"ITU-T Rec. H.222.0 | ISO/IEC 13818-1 Reserved ",
+		"ITU-T Rec. H.222.0 | ISO/IEC 13818-1 Reserved ",
+		"ITU-T Rec. H.222.0 | ISO/IEC 13818-1 Reserved ",
+		"ITU-T Rec. H.222.0 | ISO/IEC 13818-1 Reserved ",
+		"ITU-T Rec. H.222.0 | ISO/IEC 13818-1 Reserved ",
+		"ITU-T Rec. H.222.0 | ISO/IEC 13818-1 Reserved ",
+		"network_name_descriptor", // 64
+		"service_list_descriptor",
+		"stuffing_descriptor",
+		"satellite_delivery_system_descriptor",
+		"cable_delivery_system_descriptor",
+		"reserved",
+		"reserved",
+		"bouquet_name_descriptor",
+		"service_descriptor",
+		"country_availability_descriptor",
+		"linkage_descriptor",
+		"NVOD_reference_descriptor",
+		"time_shifted_service_descriptor",
+		"short_event_descriptor",
+		"extended_event_descriptor",
+		"time_shifted_event_descriptor",
+		"component_descriptor", // 80
+		"mosaic_descriptor",
+		"stream_identifier_descriptor",
+		"CA_identifier_descriptor",
+		"content_descriptor",
+		"parental_rating_descriptor",
+		"teletext_descriptor",
+		"telephone_descriptor",
+		"local_time_offset_descriptor",
+		"subtitling_descriptor",
+		"terrestrial_delivery_system_descriptor",
+		"multilingual_network_name_descriptor",
+		"multilingual_bouquet_name_descriptor",
+		"multilingual_service_name_descriptor",
+		"multilingual_component_descriptor",
+		"private_data_specifier_descriptor",
+		"service_move_descriptor", // 96
+		"short_smoothing_buffer_descriptor",
+		"frequency_list_descriptor",
+		"partial_transport_stream_descriptor",
+		"data_broadcast_descriptor",
+		"CA_system_descriptor",
+		"data_broadcast_id_descriptor",
+		"transport_stream_descriptor (TSDT)", //103
+		"DSNG_descriptor (TSDT)",
+		"PDC_descriptor",
+		"AC-3_descriptor",
+		"ancillary_data_descriptor",
+		"cell_list_descriptor",
+		"cell_frequency_link_descriptor",
+		"announcement_support_descriptor",
+		"application_signalling_descriptor",
+		"adaptation_field_data_descriptor", // 112
+		"service_identifier_descriptor",
+		"service_availability_descriptor ",
+		"default_authority_descriptor",
+		"related_content_descriptor",
+		"TVA_id_descriptor",
+		"content_identifier_descriptor",
+		"time_slice_fec_identifier_descriptor",
+		"ECM_repetition_rate_descriptor",
+		"S2_satellite_delivery_system_descriptor",
+		"enhanced_AC-3_descriptor",
+		"DTS_descriptor",
+		"AAC_descriptor",
+		"XAIT_location_descriptor",
+		"FTA_content_management_descriptor", // 126
+		"extension_descriptor"
+};
+
+char **mydvb_descriptor_type_table() {
+	return __mydvb_descriptor_type_table;
+}
 
 mydvb_descriptor *mydvb_descriptor_find (DYN_ARRAY *da, unsigned char tag) {
 	int i, len;
@@ -40,7 +189,7 @@ mydvb_descriptor *mydvb_descriptor_find (DYN_ARRAY *da, unsigned char tag) {
 void __parse_network_name_descriptor (const unsigned char *buf, mydvb_network_name_descriptor *nnd) {
 	int len;
 
-	len = buf[1] + 2;
+	len = buf[1];
 	buf += 2;
 
 	nnd->name = mydvb_text_create (buf, len);
@@ -279,6 +428,7 @@ void __parse_component_descriptor (const unsigned char *buf, mydvb_component_des
 
 	buf += 2;
 
+	cd->stream_content_ext = getbits (buf, 0, 4);
 	cd->stream_content	= getbits (buf, 4, 4);
 	cd->component_type 	= getbits (buf, 8, 8);
 
@@ -300,6 +450,37 @@ void __free_component_descriptor (mydvb_component_descriptor *cd) {
 
 	mydvb_text_free (cd->text);
 	cd->text = NULL;	
+}
+
+void __parse_iso639_lang_descriptor (const unsigned char *buf, mydvb_iso639_lang_descriptor *d) {
+	unsigned short len = buf[1];
+
+	buf += 2;
+
+	d->num_langs = len / 4;
+	if (d->num_langs > 0) {
+		d->langs = (iso639_lang *) malloc (sizeof (iso639_lang) * d->num_langs);
+
+		for (int i = 0; i < d->num_langs; i++) {
+			strncpy (d->langs[i].lang, buf, 3);
+			d->langs[i].lang[3] = '\0';
+			buf += 3;
+			d->langs[i].audio_type = *buf;
+
+			buf ++;
+		}
+
+	} else {
+		d->langs = NULL;
+	}
+
+}
+
+void __free_iso639_lang_descriptor (mydvb_iso639_lang_descriptor *d) {
+	if (d->langs) {
+		free (d->langs);
+		d->langs = NULL;
+	}
 }
 
 
@@ -488,7 +669,7 @@ int parse_descriptor (TABLE_TYPE_T t, const unsigned char *buffer, mydvb_descrip
 			break;
 		case 0x0a:
 			//if (t == PMT)
-			//	parse_iso639_language_descriptor (buffer, data);
+			__parse_iso639_lang_descriptor (buffer, &des->iso639_lang);
 			break;
 		case 0x13:
 			printf ("CAROUSEL id descriptor %d\n", t);
@@ -635,7 +816,7 @@ void free_descriptor (void *obj) {
 			}
 			break;
 		case 0x0a:
-			//	__free_iso639_language_descriptor (data);
+			__free_iso639_lang_descriptor (&des->iso639_lang);
 			break;
 
 		/* del 0x40 en adelante son de dvb */

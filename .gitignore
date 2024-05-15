@@ -52,3 +52,5 @@ m4/lt~obsolete.m4
 Makefile
 /build/
 /bak/
+/.project
+/.cproject
