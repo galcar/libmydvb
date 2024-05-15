@@ -1,4 +1,19 @@
-
+/*
+ * This file is part of the libmydvb distribution (https://github.com/galcar/libmydvb).
+ * Copyright (c) 2024 G. Alcaraz.
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, version 3.
+ *
+ * This program is distributed in the hope that it will be useful, but
+ * WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+ * General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program. If not, see <http://www.gnu.org/licenses/>.
+ */
 #include <mydvb.h>
 
 #include "descriptor.h"
@@ -7,6 +22,7 @@
  * check if a program is valid. a program is valid if it has, at least, one stream
  */
 int mydvb_is_program_valid (MYDVB_PROGRAM *program) {
+
 	int len;
 
 	if (program==NULL) {
@@ -22,12 +38,41 @@ int mydvb_is_program_valid (MYDVB_PROGRAM *program) {
 	return 0;
 }
 
-/** 
- * esta funcion devuelve un programa o servicio por numero
+MYDVB *mydvb_get_channel (MYDVB_ENGINE *engine, mydvb_tuner_type_t type, int channel) {
+	if (engine == NULL) {
+		return NULL;
+	}
+
+	for (int i = 0; i < dyn_array_get_size (engine->channels); i++) {
+		MYDVB *mydvb = *((MYDVB **) dyn_array_get_data (engine->channels,i));
+
+		if (mydvb->type == type && mydvb->channel == channel) {
+			return mydvb;
+		}
+	}
+
+	return NULL;
+}
+
+/**
+ * return the program at position pos in channel of a tuner type
  */
-MYDVB_PROGRAM *mydvb_get_program_by_number (MYDVB *mydvb, int number) {
-	MYDVB_PROGRAM *program = NULL;
-	int len;
+MYDVB_PROGRAM *mydvb_get_program (MYDVB_ENGINE *engine, mydvb_tuner_type_t type, int channel, int pos) {
+
+	if (engine==NULL) {
+		return NULL;
+	}
+
+	MYDVB *mydvb = mydvb_get_channel (engine, type, channel);
+
+	return mydvb_get_program_in_channel (mydvb, pos);
+
+}
+
+/** 
+ * return the program at position pos in channel
+ */
+MYDVB_PROGRAM *mydvb_get_program_in_channel (MYDVB *mydvb, int pos) {
 
 	if (mydvb==NULL) {
 		return NULL;
@@ -37,50 +82,38 @@ MYDVB_PROGRAM *mydvb_get_program_by_number (MYDVB *mydvb, int number) {
 		return NULL;
 	}
 
-	len = dyn_array_get_size (mydvb->pat->programs); 
-	if (len==0) {
-		return NULL;
-	}
-	if (number >= len) {
+	int len = dyn_array_get_size (mydvb->pat->programs);
+	if (len == 0 || pos >= len) {
 		return NULL;
 	}
 
-	program = dyn_array_get_data (mydvb->pat->programs, number);
-	return program;
+	return dyn_array_get_data (mydvb->pat->programs, pos);
 
 }
 
 
 /**
- * esta funcion selecciona un stream por numero, para ello busca el stream 
- * numero "number" dentro del programa
+ * return the stream at position pos in program
  */
-MYDVB_STREAM *mydvb_get_stream_by_number (MYDVB_PROGRAM *program, int number) {
-	MYDVB_STREAM *stream = NULL;
-	int len;
+MYDVB_STREAM *mydvb_get_stream (MYDVB_PROGRAM *program, int pos) {
 
 	if (program==NULL) {
 		return NULL;
 	}
 
-	len = dyn_array_get_size (program->streams);
-	if (len==0) {
+	int len = dyn_array_get_size (program->streams);
+	if (len==0 || pos >= len) {
 		return NULL;
 	}
 	
-	if (number >= len) {
-		return NULL;
-	}
-	
-	stream = dyn_array_get_data (program->streams, number);
-	return stream;	
+	return dyn_array_get_data (program->streams, pos);
 	
 }
 
 /**
- * Devuelve el nombre del servicio o programa con el número indicado
+ * Returns the service name of the program at position pos in channel
  */
-mydvb_text *mydvb_get_service_name (MYDVB *mydvb, int number) {
+mydvb_text *mydvb_get_service_name (MYDVB *mydvb, int pos) {
 	int j;
 
 	MYDVB_PROGRAM *program;
@@ -88,7 +121,7 @@ mydvb_text *mydvb_get_service_name (MYDVB *mydvb, int number) {
 	mydvb_descriptor *descriptor = NULL;
 	int len, len2;
 
-	program = mydvb_get_program_by_number (mydvb, number);
+	program = mydvb_get_program_in_channel (mydvb, pos);
 	if (program==NULL) {
 		return NULL;
 	}
@@ -109,7 +142,10 @@ mydvb_text *mydvb_get_service_name (MYDVB *mydvb, int number) {
 	return NULL;
 }
 
-mydvb_text *mydvb_get_provider_name (MYDVB *mydvb, int number) {
+/**
+ * returns the provider name of the program at position pos in channel
+ */
+mydvb_text *mydvb_get_provider_name (MYDVB *mydvb, int pos) {
 	int j;
 
 	MYDVB_PROGRAM *program;
@@ -117,7 +153,7 @@ mydvb_text *mydvb_get_provider_name (MYDVB *mydvb, int number) {
 	mydvb_descriptor *descriptor = NULL;
 	int len, len2;
 
-	program = mydvb_get_program_by_number (mydvb, number);
+	program = mydvb_get_program_in_channel (mydvb, pos);
 	if (program==NULL) {
 		return NULL;
 	}

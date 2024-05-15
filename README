@@ -1,4 +1,16 @@
-libmydvb is a library for tuning DVB devices and decoding DVB data 
-that can be exposed to programs in form of events and handlers
+# libmydvb
+
+libmydvb is a library for tuning and decoding data from Digital Video Broadcast (DVB) 
+devices that supports the Linux Digital TV API (aka Linux DVB Api).
+It is event based, so any program that uses
+libmydvb only declare callbacks that the library will invoke when an event occurs while decoding 
+the DVB stream
+
+## Uses
+libmydvb can be used in applications that want to receive information from MPEG-TS streams, like
+EPG, MHP or HBBO. It can be use also to record channels (services) from Digital TV (PVR) or send them
+ over internet (in local area networks in unicast or multicast)
+
+libmydvb allows scanning of DTV networks and supports multiple frontend devices
 
  

@@ -2,7 +2,7 @@
 # Process this file with autoconf to produce a configure script.
 
 AC_PREREQ([2.69])
-AC_INIT([libmydvb], [0.1.0], [Bugs <bugs@galcaraz.com>])
+AC_INIT([libmydvb], [0.2.0], [Bugs <bugs@galcaraz.com>])
 AC_CONFIG_SRCDIR([config.h.in])
 AC_CONFIG_HEADERS([config.h])
 
@@ -35,5 +35,6 @@ AC_CONFIG_FILES([Makefile
                  doc/Makefile
                  m4/Makefile
                  include/Makefile
-                 src/Makefile])
+                 src/Makefile
+                 tests/Makefile])
 AC_OUTPUT

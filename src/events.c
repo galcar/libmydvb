@@ -1,4 +1,19 @@
-
+/*
+ * This file is part of the libmydvb distribution (https://github.com/galcar/libmydvb).
+ * Copyright (c) 2024 G. Alcaraz.
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, version 3.
+ *
+ * This program is distributed in the hope that it will be useful, but
+ * WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+ * General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program. If not, see <http://www.gnu.org/licenses/>.
+ */
 #include <stdlib.h>
 
 #include <dynarray.h>
@@ -10,84 +25,92 @@
 /* ------------------------------------------- */
 
 
+int __mydvb_register_listener (MYDVB_ENGINE *engine, mydvb_event_type_t type, mydvb_event_scope_t scope, void (*callback) (MYDVB_ENGINE *, MYDVB_EVENT *, void *), void *data) {
 
-int __mydvb_listeners_id = 100;
+	MYDVB_LISTENER *listener = NULL;
+
+	if (engine==NULL || callback == NULL) {
+		return -1;
+	}
+
+	listener = (MYDVB_LISTENER *) dyn_array_add_empty (engine->listeners);
+	listener->id = engine->listener_cnt ++;
+	listener->type = type;
+	listener->scope = scope;
+	listener->callback = callback;
+	listener->data = data;
+
+	return listener->id;
+
+}
+
 
 /**
  * add a new listener
  */
-int mydvb_register_listener (MYDVB *mydvb, int type, void (*callback) (MYDVB *, MYDVB_EVENT *, void *), void *data) {
+int mydvb_register_listener (MYDVB_ENGINE *engine, int type, void (*callback) (MYDVB_ENGINE *, MYDVB_EVENT *, void *), void *data) {
 
-	MYDVB_LISTENER *listener = NULL;
+	return __mydvb_register_listener (engine, type, MYDVB_EVENT_SCOPE_USER, callback, data);
 
-	if (mydvb==NULL || callback == NULL) {
-		return -1;
-	}
+}
 
-	listener = (MYDVB_LISTENER *) dyn_array_add_empty (mydvb->listeners);
-	listener->id = __mydvb_listeners_id;
-	listener->type = type;
-	listener->callback = callback;
-	listener->data = data;
+int mydvb_register_internal_listener (MYDVB_ENGINE *engine, int type, void (*callback) (MYDVB_ENGINE *, MYDVB_EVENT *, void *), void *data) {
 
-	__mydvb_listeners_id ++;
-
-	return listener->id;
+	return __mydvb_register_listener (engine, type, MYDVB_EVENT_SCOPE_ENGINE, callback, data);
 
 }
 
 /**
  * add a new external filedescriptor listener
  */
-int mydvb_register_ext_listener (MYDVB *mydvb, int fd, void (*callback) (MYDVB *, MYDVB_EVENT *, void *), void *data) {
+int mydvb_register_ext_listener (MYDVB_ENGINE *engine, int fd, void (*callback) (MYDVB_ENGINE *, MYDVB_EVENT *, void *), void *data) {
 
 	MYDVB_LISTENER *listener = NULL;
 
-	if (mydvb==NULL || callback == NULL) {
+	if (engine==NULL || callback == NULL) {
 		return -1;
 	}
 
-	listener = (MYDVB_LISTENER *) dyn_array_add_empty (mydvb->listeners);
-	listener->id = __mydvb_listeners_id;
+	listener = (MYDVB_LISTENER *) dyn_array_add_empty (engine->listeners);
+	listener->id = engine->listener_cnt ++;
 	listener->type = MYDVB_EVENT_EXT_FD;
+	listener->scope = MYDVB_EVENT_SCOPE_USER;
 	listener->callback = callback;
 	listener->data = data;
 	listener->extra.fd = fd;
 
-	__mydvb_add_poll (mydvb, fd);
-
-	__mydvb_listeners_id ++;
+	mydvb_add_poll (engine, fd);
 
 	return listener->id;
 
 }
 
-void mydvb_remove_listener (MYDVB *mydvb, int id) {
+void mydvb_remove_listener (MYDVB_ENGINE *engine, int id) {
 	int j;
 	int len;
 	MYDVB_LISTENER *aux;
 
-	if (mydvb==NULL) {
+	if (engine==NULL) {
 		return;
 	}
 
-	len = dyn_array_get_size (mydvb->listeners);
+	len = dyn_array_get_size (engine->listeners);
 
 	for (j=0; j < len; j++) {
 
-		aux = (MYDVB_LISTENER *) dyn_array_get_data (mydvb->listeners, j);
+		aux = (MYDVB_LISTENER *) dyn_array_get_data (engine->listeners, j);
 
 		if (aux->id == id) {
 
 			if (aux->type == MYDVB_EVENT_EXT_FD) {
 
-				__mydvb_remove_poll (mydvb, aux->extra.fd);
+				mydvb_remove_poll (engine, aux->extra.fd);
 
 			}
 
-			dyn_array_remove (mydvb->listeners, j);
+			dyn_array_remove (engine->listeners, j);
 
-			mydvb->event_propagation = 0;
+			engine->event_propagation = 0;
 
 			break;
 		}
@@ -98,33 +121,33 @@ void mydvb_remove_listener (MYDVB *mydvb, int id) {
 /**
  * stop the propagation of the event across the listeners list
  */
-void mydvb_event_stop_propagation (MYDVB *mydvb) {
+void mydvb_event_stop_propagation (MYDVB_ENGINE *engine) {
 
-	if (mydvb == NULL) {
+	if (engine == NULL) {
 		return;
 	}
 
-	mydvb->event_propagation = 0;
+	engine->event_propagation = 0;
 }
 
-void mydvb_notify_event (MYDVB *mydvb, MYDVB_EVENT *event) {
+void mydvb_notify_event (MYDVB_ENGINE *engine, MYDVB_EVENT *event) {
 
 	int i;
 	MYDVB_LISTENER *listener;
 
 	int match;
 
-	if (mydvb == NULL || event == NULL) {
+	if (engine == NULL || event == NULL) {
 		return;
 	}
 
-	mydvb->event_propagation = 1;
+	engine->event_propagation = 1;
 
 	i = 0;
 
-	while (i < dyn_array_get_size (mydvb->listeners)) {
+	while (i < dyn_array_get_size (engine->listeners)) {
 
-		listener = (MYDVB_LISTENER *) dyn_array_get_data (mydvb->listeners, i);
+		listener = (MYDVB_LISTENER *) dyn_array_get_data (engine->listeners, i);
 
 		match = 0;
 
@@ -142,9 +165,9 @@ void mydvb_notify_event (MYDVB *mydvb, MYDVB_EVENT *event) {
 
 		if (match) {
 
-			listener->callback (mydvb, event, listener->data);
+			listener->callback (engine, event, listener->data);
 
-			if (mydvb->event_propagation == 0) {
+			if (engine->event_propagation == 0) {
 				break;
 			}
 

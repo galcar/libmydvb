@@ -116,6 +116,7 @@ typedef struct {
 	unsigned char			table;
 	unsigned char 			type; /* component descriptor tag */
 
+	unsigned char			stream_content_ext;
 	unsigned char			stream_content;
 	unsigned char 			component_type;
 	unsigned char 			component_tag;
@@ -124,6 +125,21 @@ typedef struct {
 	mydvb_text			 	*text;
 
 } mydvb_component_descriptor;
+
+typedef struct {
+	unsigned char lang[4];
+	unsigned char audio_type;
+} iso639_lang;
+
+typedef struct {
+
+	unsigned char			table;
+	unsigned char 			type; /* component descriptor tag */
+
+	int						num_langs;
+	iso639_lang				*langs;
+
+} mydvb_iso639_lang_descriptor;
 
 /**
  * Data broadcast descriptor
@@ -169,6 +185,7 @@ typedef union {
 	mydvb_parental_rating_descriptor						parental_rating;
 	mydvb_content_descriptor 								content;
 	mydvb_component_descriptor 								component;
+	mydvb_iso639_lang_descriptor							iso639_lang;
 
 	mydvb_data_broadcast_descriptor							data_broadcast;
 	mydvb_data_broadcast_id_descriptor						data_broadcast_id;
@@ -184,6 +201,9 @@ typedef union {
 
 } mydvb_descriptor;
 
+#define MYDVB_DESCRIPTOR_TYPE_LEN 128
+
+char **mydvb_descriptor_type_table();
 
 mydvb_descriptor *	mydvb_descriptor_find (DYN_ARRAY *da, unsigned char tag);
 

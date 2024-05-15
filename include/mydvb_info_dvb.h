@@ -22,6 +22,7 @@
 #include <linux/dvb/frontend.h>
 
 #include <mydvb_text.h>
+#include <mydvb_tune.h>
 
 /*
 	mrl: dvbt://channel_number/program_index
@@ -41,14 +42,14 @@ typedef struct _info_channel INFO_CHANNEL;
 
 struct _info_stream {
 	INFO_PROGRAM *program;	// program of the stream
-	int n;					// number of stream
+	int n;					// number of stream in program (starting from 0)
 	int type; 				// type of stream
 	int pid; 				// pid of packets
 };
 
 struct _info_program {
 	INFO_CHANNEL *channel;		// channel of the program
-	int n; 						// number of program
+	int n; 						// number of program in channel (starting from 0)
 	mydvb_text *provider;
 	mydvb_text *service;
 	
@@ -66,11 +67,12 @@ struct _info_program {
 };
 
 struct _info_channel {
-	int n;	// number of channel
-	struct dvb_frontend_parameters p; // parameters of the channel
+	mydvb_tuner_type_t				type; // type of channel (dvbs, dvbc, dvbt...)
+	int 							n;	// number of channel
+	struct dvb_frontend_parameters 	p; // parameters of the channel
 	
-	int programs_len;
-	INFO_PROGRAM **programs;
+	int 							programs_len;
+	INFO_PROGRAM 					**programs;
 	
 };
 
@@ -79,7 +81,7 @@ typedef struct {
 	int channels_len;
 	INFO_CHANNEL **channels;
 
-	int user_number; // global user number counter (max of al user number)
+	int user_number; // global user number counter (max of all user number)
 
 } INFO_DVB;
 
@@ -95,7 +97,11 @@ int info_dvb_save_channels_conf (const char *name, INFO_DVB *dvb);
 int info_dvb_add (INFO_DVB *dvb, INFO_CHANNEL *channel);
 void info_dvb_remove (INFO_DVB *dvb, INFO_CHANNEL *channel);
 
-INFO_PROGRAM *info_dvb_find (INFO_DVB *dvb, int channel, int service);
+INFO_PROGRAM *info_dvb_find (INFO_DVB *dvb, mydvb_tuner_type_t type, int channel, int service);
+
+INFO_PROGRAM *info_dvb_get_by_user_number (INFO_DVB *dvb, int user_number);
+
+void info_dvb_move_channel (INFO_DVB *dvb, int chn_from, int chn_to);
 
 void info_dvb_merge (INFO_DVB *dvb1, INFO_DVB *dvb2);
 

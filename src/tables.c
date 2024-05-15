@@ -1,4 +1,19 @@
-
+/*
+ * This file is part of the libmydvb distribution (https://github.com/galcar/libmydvb).
+ * Copyright (c) 2024 G. Alcaraz.
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, version 3.
+ *
+ * This program is distributed in the hope that it will be useful, but
+ * WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+ * General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program. If not, see <http://www.gnu.org/licenses/>.
+ */
 
 /*
 	Decoding of tables
@@ -468,7 +483,7 @@ MYDVB_SDT *mydvb_new_sdt_if_changed (const unsigned char *buffer, size_t len, MY
 	int descriptors_len;
 	int dl;
 
-	mydvb_log (MYDVB_LOG_LEVEL_DEBUG, "Decoding SDT");
+	mydvb_log (MYDVB_LOG_LEVEL_DEBUG, "Decoding SDT %d", len);
 
 	mydvb_hex_log (1, buffer, len);
 
@@ -477,7 +492,6 @@ MYDVB_SDT *mydvb_new_sdt_if_changed (const unsigned char *buffer, size_t len, MY
 		sdt->ts_id = 0xffff;
 		sdt->version = 0xff;
 		sdt->service_description = NULL;
-
 	}
 
 	new_version = getbits (buffer, 42, 5);

@@ -83,7 +83,7 @@ int main (int argc, char *args[]) {
 		mydvb_init (mydvb, NULL);			
 		
 		/* sintoniza el canal deseado */
-		mydvb_tune_channel (&mydvb->mytune, info_dvb, channel);
+		mydvb_tuner_channel (&mydvb->mytune, info_dvb, channel);
 
 		/* arranca el decoder */
 		mydvb_start_decoder (mydvb);
@@ -123,7 +123,7 @@ int main (int argc, char *args[]) {
 		mydvb_end_program_stream (mydvb, program);
 		
 		/* termina el decoder */
-		mydvb_end_decoder (mydvb);
+		mydvb_stop_decoder (mydvb);
 
 		/* finaliza la sintonización */
 		mydvb_tune_end (&mydvb->mytune);		

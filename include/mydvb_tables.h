@@ -7,15 +7,6 @@
 
 #include <mydvb_date.h>
 
-/* por que DYN_ARRAY ?
-	Se utilizan tablas dinamicas ya que permiten por un lado, un acceso aleatorio a cualquier
-	entrada de la tabla. Por otro lado la tabla es dinámica lo que permite no conocer a priori
-	el numero de elementos existentes. Esto ocurre con los descriptores, streams y casi
-	cualquier lista de elementos en los paquetes TS. El proceso de creacion puede ser lento
-	ya que en cada nuevo elemento se redistribuye la memoria para que todos los elementos
-	esten juntos. Con pocos entradas esto no debe suponer una penalizacion en el rendimiento
-*/
-
 typedef enum table_type {
 			PAT,
 			CAT,
