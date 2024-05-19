@@ -15,7 +15,7 @@ libmydvb_la_SOURCES = mydvb.c \
 	tables.h tables.c \
 	tune.h tune.c \
 	util.h util.c
-	
-	
+
+
 libmydvb_la_CPPFLAGS = -I$(top_srcdir)/include
-	
+
