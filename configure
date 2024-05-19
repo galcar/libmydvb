@@ -595,7 +595,7 @@ PACKAGE_STRING='libmydvb 0.2.0'
 PACKAGE_BUGREPORT='Bugs <bugs@galcaraz.com>'
 PACKAGE_URL=''
 
-ac_unique_file="config.h.in"
+ac_unique_file="src/mydvb.c"
 # Factoring default headers for most tests.
 ac_includes_default="\
 #include <stdio.h>

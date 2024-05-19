@@ -3,7 +3,7 @@
 
 AC_PREREQ([2.69])
 AC_INIT([libmydvb], [0.2.0], [Bugs <bugs@galcaraz.com>])
-AC_CONFIG_SRCDIR([config.h.in])
+AC_CONFIG_SRCDIR([src/mydvb.c])
 AC_CONFIG_HEADERS([config.h])
 
 AC_CONFIG_MACRO_DIR([m4])
