@@ -21,6 +21,51 @@
 
 #include <mydvb_text.h>
 
+static char * _mydvb_text_charsets[] ={
+		"ISO-6937",			/* 0 */
+		"ISO-8859-5",		/* 1 */
+		"ISO-8859-6",		/* 2 */
+		"ISO-8859-7",		/* 3 */
+		"ISO-8859-8",		/* 4 */
+		"ISO-8859-9",		/* 5 */
+		"ISO-8859-10",		/* 6 */
+		"ISO-8859-11",		/* 7 */
+		NULL,				/* 8 */
+		"ISO-8859-13",		/* 9 */
+		"ISO-8859-14",		/* a */
+		"ISO-8859-15",		/* b */
+		NULL,				/* c */
+		NULL,				/* d */
+		NULL,				/* e */
+		NULL,				/* f */
+		"ISO-8859",			/* 10 */
+		"ISO-10646/UCS2",	/* 11 */
+		"ISO-2022-KR",		/* 12 */
+		"GB2312",			/* 13 */
+		"UTF-16BE",			/* 14 */
+		"ISO-10646/UTF-8"	/* 15 */
+		
+};
+
+static char * _mydvb_text_iso8859_charsets[] ={
+		NULL,				/* 0 */
+		"ISO-8859-1",		/* 1 */
+		"ISO-8859-2",		/* 2 */
+		"ISO-8859-3",		/* 3 */
+		"ISO-8859-4",		/* 4 */
+		"ISO-8859-5",		/* 5 */
+		"ISO-8859-6",		/* 6 */
+		"ISO-8859-7",		/* 7 */
+		"ISO-8859-8",		/* 8 */
+		"ISO-8859-9",		/* 9 */
+		"ISO-8859-10",		/* a */
+		"ISO-8859-11",		/* b */
+		NULL,				/* c */
+		"ISO-8859-13",		/* d */
+		"ISO-8859-14",		/* e */
+		"ISO-8859-15"		/* f */	
+};
+
 
 static uint32_t _mydvb_text_table_pages[][256] = {
 		// table 0, latin alphabet (unicode values)
@@ -143,6 +188,8 @@ mydvb_text *mydvb_text_create (const unsigned char *buf, size_t len) {
 
 	mydvb_text *txt = NULL;
 
+	char *charset = NULL;
+
 	int i = 0;
 	const unsigned char *src = buf;
 	uint32_t *dest;
@@ -153,22 +200,38 @@ mydvb_text *mydvb_text_create (const unsigned char *buf, size_t len) {
 	txt = (mydvb_text *) malloc (sizeof(mydvb_text));
 
 	txt->lang = NULL;
+	txt->charset = _mydvb_text_iso8859_charsets[1]; // default to iso-8859-1
 	txt->length = 0;
 	txt->text = NULL;
 
 	if (buf == NULL || len == 0) {
 		return txt; /* here, we always return an object */
 	}
+	
+	
+	// check charset
+	if (*src < 0x20) {
+		table_code = *src;
+		src ++;
+		len --;
+		
+		if (table_code == 0x10) { // one of iso-8859
+			if (*src == 0 && *(src + 1) <= 0x0f) {
+				table_code = *src;
+				charset = _mydvb_text_iso8859_charsets[table_code];
+				src +=2;
+				len -=2;
+				table_code = 0;
+			}
+		} else {
+			charset = _mydvb_text_charsets[table_code];
+		}
+	}
 
 	txt->text = (uint32_t *) malloc (sizeof(uint32_t)*len);
-
 	dest = txt->text;
 	while (i < len) {
-		if (i == 0) {
-			if (*src < 0x20) {
-				table_code = *src;
-			}
-		}
+
 		if (table_code > 5) {
 			break; // TODO: implement all other table codes
 		}

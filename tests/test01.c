@@ -88,7 +88,7 @@ int main (int argc, char **argsv) {
 	scan.param.t.f_start = 474000000; // + 8000000*45; // 474000000;
 	scan.param.t.f_end   = 690000000; //scan.param.t.f_start + 3*scan.param.t.f_step; // 690000000; 858000000;
 
-	mydvb_log_open (MYDVB_LOG_LEVEL_ERROR, NULL);
+	mydvb_log_open (MYDVB_LOG_LEVEL_DEBUG, NULL);
 
 	mydvb_engine_init (&engine);
 

@@ -9,6 +9,7 @@
  */
 typedef struct {
 	unsigned char	*	lang;	/* iso 639 language code used in name */
+	char 			*	charset;
 	unsigned int		length;	/* text length */
 	uint32_t		*	text;	/* unicode string */
 } mydvb_text;
